@@ -21,6 +21,18 @@ pub enum RespValue {
   Array(Vec<RespValue>),
 }
 
+// impl RespValue {
+//   fn bulk_nil() -> RespValue {
+//     let vec = vec![PREFIX_BULK, ..format!("{}", bulk.len()).as_bytes()];
+//     RespValue::Bulk(vec)
+//   }
+
+//   fn simple_string(val: String) -> RespValue {
+//     let vec = vec![PREFIX_BULK, ..format!("{}", bulk.len()).as_bytes()];
+//     RespValue::Bulk(vec)
+//   }
+// }
+
 #[derive(Debug)]
 pub struct Resp<'a> {
   payload: RespValue,
@@ -119,7 +131,7 @@ pub struct RespWriter<'a> {
 }
 
 impl<'a> RespWriter<'a> {
-  pub fn writeBulkString(&mut self, bulk: &Vec<u8>) {
+  pub fn write_bulk_string(&mut self, bulk: &Vec<u8>) {
     self.stream.write(&vec![PREFIX_BULK]);
     self.stream.write(format!("{}", bulk.len()).as_bytes());
     self.stream.write(&vec![CARRIAGE_RETURN, LINE_FEED]);
@@ -127,35 +139,35 @@ impl<'a> RespWriter<'a> {
     self.stream.write(&vec![CARRIAGE_RETURN, LINE_FEED]);
   }
 
-  pub fn writeSimpleString(&mut self, simple: &str) {
+  pub fn write_simple_string(&mut self, simple: &str) {
     self.stream.write(&vec![PREFIX_SIMPLE]);
     self.stream.write(simple.as_bytes());
     self.stream.write(&vec![CARRIAGE_RETURN, LINE_FEED]);
   }
 
-  pub fn writeInteger(&mut self, val: i64) {
+  pub fn write_integer(&mut self, val: i64) {
     self.stream.write(&vec![PREFIX_INTEGER]);
     self.stream.write(format!("{}", val).as_bytes());
     self.stream.write(&vec![CARRIAGE_RETURN, LINE_FEED]);
   }
 
-  pub fn writeError(&mut self, err: &str) {
+  pub fn write_error(&mut self, err: &str) {
     self.stream.write(&vec![PREFIX_ERROR]);
     self.stream.write(err.as_bytes());
     self.stream.write(&vec![CARRIAGE_RETURN, LINE_FEED]);
   }
 
-  pub fn writeArray(&mut self, arr: &Vec<RespValue>) {
+  pub fn write_array(&mut self, arr: &Vec<RespValue>) {
     self.stream.write(&vec![PREFIX_ARRAY]);
     self.stream.write(format!("{}", arr.len()).as_bytes());
     self.stream.write(&vec![CARRIAGE_RETURN, LINE_FEED]);
     for it in arr.iter() {
       match it {
-          &RespValue::Array(ref arr) => self.writeArray(arr),
-          &RespValue::Bulk(ref bulk) => self.writeBulkString(bulk),
-          &RespValue::Integer(int) => self.writeInteger(int),
-          &RespValue::Simple(ref simple) => self.writeSimpleString(simple),
-          &RespValue::Error(ref e) => self.writeError(e),
+          &RespValue::Array(ref arr) => self.write_array(arr),
+          &RespValue::Bulk(ref bulk) => self.write_bulk_string(bulk),
+          &RespValue::Integer(int) => self.write_integer(int),
+          &RespValue::Simple(ref simple) => self.write_simple_string(simple),
+          &RespValue::Error(ref e) => self.write_error(e),
       }
     }
     self.stream.write(&vec![CARRIAGE_RETURN, LINE_FEED]);
@@ -163,11 +175,11 @@ impl<'a> RespWriter<'a> {
 
   pub fn write(&mut self, val: RespValue) {
     match val {
-        RespValue::Array(arr) => self.writeArray(&arr),
-        RespValue::Bulk(bulk) => self.writeBulkString(&bulk),
-        RespValue::Integer(int) => self.writeInteger(int),
-        RespValue::Simple(simple) => self.writeSimpleString(&simple),
-        RespValue::Error(e) => self.writeError(&e),
+        RespValue::Array(arr) => self.write_array(&arr),
+        RespValue::Bulk(bulk) => self.write_bulk_string(&bulk),
+        RespValue::Integer(int) => self.write_integer(int),
+        RespValue::Simple(simple) => self.write_simple_string(&simple),
+        RespValue::Error(e) => self.write_error(&e),
     }
   }
 }
