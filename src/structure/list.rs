@@ -55,24 +55,28 @@ impl List {
       }
     }
 
-    //TODO
-    // fn lrem(&mut self, key: String, count: isize, value: String) -> usize {
-    //   match self.hash.entry(key) {
-    //       Entry::Occupied(l) => {
-    //         let mut number = 0;
-    //         let list = l.into_mut();
-    //         if count < 0 {
-    //           list.reverse();
-    //         }
-
-    //         list
-    //         .filter(|val| val == value)
-    //         .for_each(|(_, index)| )
-    //         return number;
-    //       },
-    //       Entry::Vacant(_) => 0,
-    //   }
-    // }
+    fn lrem(&mut self, key: String, count: isize, value: &str) -> usize {
+      match self.hash.entry(key) {
+          Entry::Occupied(l) => {
+            let list = l.into_mut();
+            let mut remove_count = count;
+            if remove_count < 0 {
+              remove_count = -remove_count;
+            }
+            let mut removed_count = 0;
+            while remove_count > removed_count || count == 0 {
+              if let Some(index) = list.iter().position(|ref val| val.as_str() == value) {
+                list.remove(index);
+                removed_count = removed_count + 1;
+              } else {
+                break;
+              }
+            }
+            return removed_count as usize;
+          },
+          Entry::Vacant(_) => 0,
+      }
+    }
 
     // fn lrange(&mut self, key: String, start: isize, end: isize) -> String {
 
