@@ -21,7 +21,7 @@ impl Server {
       for stream in self.listener.incoming() {
         match stream {
           Ok(stream) => {
-            let mut resp = resp::parse(stream);
+            let mut resp = resp::parse(&stream);
           },
           Err(e) => {
             println!("listner error: {:?}", e);
