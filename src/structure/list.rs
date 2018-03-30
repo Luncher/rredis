@@ -3,79 +3,58 @@ use std::collections::hash_map::Entry;
 use resp::RespValue;
 
 pub struct List {
-  hash: HashMap<String, Vec<String>>
+  vec: Vec<String>,
 }
 
 impl List {
     fn new() -> List {
       List {
-        hash: HashMap::new()
+        vec: Vec::new()
       }
     }
 
-    fn lpush(&mut self, key: String, vals: Vec<String>) -> usize {
-      let list = self.hash.entry(key).or_insert(Vec::new());
+    fn lpush(&mut self, vals: Vec<String>) -> usize {
       for val in vals {
-        list.insert(0, val);
+        self.vec.insert(0, val);
       }
-      list.len()
+      self.vec.len()
     }
 
-    fn lpop(&mut self, key: String) -> Option<String> {
-      match self.hash.entry(key) {
-        Entry::Occupied(l) => {
-          let list = l.into_mut();
-          if list.len() == 0 {
-            return None
-          } else {
-            return Some(list.remove(0))
-          }
-        },
-        Entry::Vacant(_) => None,
+    fn lpop(&mut self) -> Option<String> {
+      if self.vec.len() == 0 {
+        return None
+      } else {
+        return Some(self.vec.remove(0))
       }
     }
 
-    fn llen(& self, key: String) -> usize {
-      match self.hash.get(&key) {
-        Some(list) => list.len(),
-        None => 0,
-      }
+    fn llen(&self) -> usize {
+      return self.vec.len()
     }
 
-    fn lindex(&mut self, key: String, index: isize) -> Option<&String> {
-      match self.hash.get(&key) {
-        Some(list) => {
-          let mut id = index;
-          if index < 0 {
-            id = index + list.len() as isize;
-          }
-          return list.get(id as usize);
-        },
-        None => None,
+    fn lindex(&mut self, index: isize) -> Option<&String> {
+      let mut id = index;
+      if index < 0 {
+        id = index + self.vec.len() as isize;
       }
+      return self.vec.get(id as usize);
     }
 
-    fn lrem(&mut self, key: String, count: isize, value: &str) -> usize {
-      match self.hash.entry(key) {
-          Entry::Occupied(l) => {
-            let list = l.into_mut();
-            let mut remove_count = count;
-            if remove_count < 0 {
-              remove_count = -remove_count;
-            }
-            let mut removed_count = 0;
-            while remove_count > removed_count || count == 0 {
-              if let Some(index) = list.iter().position(|ref val| val.as_str() == value) {
-                list.remove(index);
-                removed_count = removed_count + 1;
-              } else {
-                break;
-              }
-            }
-            return removed_count as usize;
-          },
-          Entry::Vacant(_) => 0,
+    fn lrem(&mut self, count: isize, value: &str) -> usize {
+      let mut removed_count = 0;      
+      let mut remove_count = count;
+      if remove_count < 0 {
+        remove_count = -remove_count;
       }
+      while remove_count > removed_count || count == 0 {
+        if let Some(index) = self.vec.iter().position(|ref val| val.as_str() == value) {
+          self.vec.remove(index);
+          removed_count = removed_count + 1;
+        } else {
+          break;
+        }
+      }
+      return removed_count as usize;
     }
 
     fn fix_range(start: isize, end: isize, len: usize) -> Option<(usize, usize)> {
@@ -95,114 +74,68 @@ impl List {
     }
 
     fn lrange(&self, key: String, start: isize, end: isize) -> Option<&[String]> {
-      match self.hash.get(&key) {
-          Some(list) => {
-            let len = list.len();
-            if len == 0 {
-              return None;
-            }
-            match List::fix_range(start, end, len) {
-                Some((s, e)) => Some(&list[s..e]),
-                None => None,
-            }
-          },
+      if self.vec.len() == 0 {
+        return None;
+      }
+      match List::fix_range(start, end, self.vec.len()) {
+          Some((s, e)) => Some(&self.vec[s..e]),
           None => None,
       }
     }
 
-    fn lset(&mut self, key: String, index: isize, value: String) -> Result<(), &'static str> {
-      match self.hash.get_mut(&key) {
-          Some(list) => {
-            let mut idx = index;
-            let len: isize = list.len() as isize;
-            if index < 0 {
-              idx = index + list.len() as isize + 1;
-            }
-            if len < idx {
-              return Err("Index Out of Range");
-            }
-            list[idx as usize] = value;
-            return Ok(());
-          },
-          None => Err("Not Found"),
+    fn lset(&mut self, index: isize, value: String) -> Result<(), &'static str> {
+      let mut idx = index;
+      let len: isize = self.vec.len() as isize;
+      if index < 0 {
+        idx = index + self.vec.len() as isize + 1;
       }
+      if len < idx {
+        return Err("Index Out of Range");
+      }
+      self.vec[idx as usize] = value;
+      return Ok(());
     }
 
-    fn ltrim(&mut self, key: String, start: isize, end: isize) -> Option<()> {
-      match self.hash.get_mut(&key) {
-          None => None,        
-          Some(list) => {
-            let len = list.len();
-            if len == 0 {
-              return None;
-            }
-            match List::fix_range(start, end, len) {
-                Some((s, e)) => {
-                  list.drain(s..e);
-                  return Some(());
-                },
-                None => None,
-            }
-          },
+    fn ltrim(&mut self, start: isize, end: isize) -> Option<()> {
+      if self.vec.len() == 0 {
+        return None;
       }
-    }
-
-    fn linsert(&mut self, key: String, gap: &str, pivot: &str, value: &str) -> Option<isize> {
-      match self.hash.get_mut(&key) {
+      match List::fix_range(start, end, self.vec.len()) {
+        Some((s, e)) => {
+          self.vec.drain(s..e);
+          return Some(());
+        },
         None => None,
-        Some(list) => {
-          match list.iter().position(|ref x| x.as_str() == pivot) {
-            None => Some(-1),
-            Some(index) => {
-              match &gap as &str {
-                "BEFORE" => {
-                  if index == 0 {
-                    list.insert(0, value.to_string());
-                  } else {
-                    list.insert(index - 1, value.to_string());
-                  }
-                },
-                _ => list.insert(index + 1, value.to_string()),
-              };
-              Some(list.len() as isize)
-            }
-          }
+      }
+    }
+
+    fn linsert(&mut self, gap: &str, pivot: &str, value: &str) -> Option<isize> {
+      match self.vec.iter().position(|ref x| x.as_str() == pivot) {
+        None => Some(-1),
+        Some(index) => {
+          match &gap as &str {
+            "BEFORE" => {
+              if index == 0 {
+                self.vec.insert(0, value.to_string());
+              } else {
+                self.vec.insert(index - 1, value.to_string());
+              }
+            },
+            _ => self.vec.insert(index + 1, value.to_string()),
+          };
+          Some(self.vec.len() as isize)
         }
       }
     }
 
-    fn rpush(&mut self, key: String, vals: Vec<String>) -> Option<usize> {
-      let list = self.hash.entry(key).or_insert(Vec::new());
+    fn rpush(&mut self, vals: Vec<String>) -> Option<usize> {
       for value in vals {
-        list.push(value);
+        self.vec.push(value);
       }
-      Some(list.len())
+      Some(self.vec.len())
     }
 
-    fn rpushx(&mut self, key: String, vals: Vec<String>) -> Option<usize> {
-      if self.hash.contains_key(&key) {
-        return self.rpush(key, vals);
-      }
-      return None;
-    }
-
-    fn rpop(&mut self, key: String) -> Option<String> {
-      match self.hash.get_mut(&key) {
-        None => None,
-        Some(list) => list.pop(),
-      }
-    }
-
-    fn rpoplpush(&mut self, source: String, dest: String) -> Result<(), &'static str> {
-      if !self.hash.contains_key(&source) || !self.hash.contains_key(&dest) {
-        return Err("Invalid List");
-      }
-      match self.lpop(source) {
-          None => Err("Invalid Source List"),        
-          Some(item) => {
-            self.lpush(dest, vec![item]);
-            Ok(())
-          },
-      }
+    fn rpop(&mut self) -> Option<String> {
+      self.vec.pop()
     }
 }
